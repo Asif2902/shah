@@ -1,0 +1,52 @@
+/**
+ * Token list for ArcFlow Finance.
+ * For Arc AppKit swap, only USDC, EURC, and cirBTC are supported on Arc Testnet.
+ * The `appKitSymbol` field maps to the Arc AppKit token identifier.
+ */
+export type Token = {
+  symbol: string;
+  name: string;
+  address: `0x${string}`;
+  decimals: number;
+  logoLetter: string;
+  /** Arc AppKit swap token identifier. Undefined if not swappable via AppKit. */
+  appKitSymbol?: string;
+};
+
+export const TOKEN_LIST: Token[] = [
+  {
+    symbol: "USDC",
+    name: "USD Coin",
+    address: "0x3600000000000000000000000000000000000000",
+    decimals: 6,
+    logoLetter: "U",
+    appKitSymbol: "USDC",
+  },
+  {
+    symbol: "EURC",
+    name: "Euro Coin",
+    address: "0x0000000000000000000000000000000000000002",
+    decimals: 6,
+    logoLetter: "E",
+    appKitSymbol: "EURC",
+  },
+  {
+    symbol: "cirBTC",
+    name: "Circle Bitcoin",
+    address: "0x0000000000000000000000000000000000000003",
+    decimals: 8,
+    logoLetter: "B",
+    appKitSymbol: "cirBTC",
+  },
+];
+
+/** Tokens supported for swap via Arc AppKit on Arc Testnet */
+export const SWAPPABLE_TOKENS = TOKEN_LIST.filter((t) => !!t.appKitSymbol);
+
+export function getTokenBySymbol(symbol: string): Token | undefined {
+  return TOKEN_LIST.find((t) => t.symbol.toLowerCase() === symbol.toLowerCase());
+}
+
+export function getTokenByAddress(address: string): Token | undefined {
+  return TOKEN_LIST.find((t) => t.address.toLowerCase() === address.toLowerCase());
+}
