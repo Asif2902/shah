@@ -25,7 +25,7 @@ export const TOKEN_LIST: Token[] = [
   {
     symbol: "EURC",
     name: "Euro Coin",
-    address: "0x0000000000000000000000000000000000000002",
+    address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a",
     decimals: 6,
     logoLetter: "E",
     appKitSymbol: "EURC",
@@ -33,7 +33,7 @@ export const TOKEN_LIST: Token[] = [
   {
     symbol: "cirBTC",
     name: "Circle Bitcoin",
-    address: "0x0000000000000000000000000000000000000003",
+    address: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF",
     decimals: 8,
     logoLetter: "B",
     appKitSymbol: "cirBTC",

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { SwapKit } from "@circle-fin/swap-kit";
-import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
+import { parseUnits, formatUnits } from "viem";
+import { getTokenBySymbol } from "@/lib/tokenList";
 
 interface SwapQuoteResult {
   amountOut: string;
@@ -13,11 +13,39 @@ interface SwapQuoteResult {
   error: string | null;
 }
 
+/**
+ * Maps our /api/swap/quote proxy's HTTP status back to an actionable message.
+ * The proxy runs server-side, so a failure here is either "no liquidity route"
+ * (expected on Arc Testnet — see docs.arc.io/app-kit/quickstarts) or a real
+ * outage of Circle's service, never a browser-side network/extension block.
+ */
+function describeQuoteError(status: number, apiMessage?: string): string {
+  if (status === 404 || apiMessage?.toLowerCase().includes("no route")) {
+    return "No swap route found for this pair on Arc Testnet right now — testnet liquidity can be thin or imbalanced. Try a different pair, a smaller amount, or try again shortly.";
+  }
+  if (status === 429) {
+    return "Arc AppKit is rate-limiting quote requests. Please wait a moment and try again.";
+  }
+  if (status === 502) {
+    return "Arc AppKit Swap Service is currently unavailable. Please try again later.";
+  }
+  return apiMessage ?? `Quote request failed (HTTP ${status})`;
+}
+
+/**
+ * Fetches swap quotes from our own /api/swap/quote route instead of calling
+ * Circle's API directly from the browser. That endpoint is read-only pricing
+ * with no wallet/signing involved, so proxying it server-side means browser
+ * extensions or network policies that block third-party fetches to
+ * api.circle.com no longer break quotes (unlike swap execution, which still
+ * has to run client-side against the wallet adapter).
+ */
 export function useSwapQuote(
   tokenInSymbol: string | undefined,
   tokenOutSymbol: string | undefined,
   amountIn: string,
-  slippage: number = 0.5
+  slippage: number = 0.5,
+  fromAddress?: string
 ): SwapQuoteResult {
   const [result, setResult] = useState<SwapQuoteResult>({
     amountOut: "",
@@ -56,102 +84,82 @@ export function useSwapQuote(
       return;
     }
 
+    const tokenIn = getTokenBySymbol(tokenInSymbol);
+    const tokenOut = getTokenBySymbol(tokenOutSymbol);
+    if (!tokenIn || !tokenOut) {
+      setResult(empty);
+      return;
+    }
+
     abortRef.current = false;
     setResult((prev) => ({ ...prev, loading: true, error: null }));
 
-    const kitKey = process.env.NEXT_PUBLIC_ARC_KIT_KEY;
-
-    // Fallback mock estimate when no kit key configured
-    if (!kitKey || kitKey === "your_kit_key_here") {
-      const timer = setTimeout(() => {
-        if (abortRef.current) return;
-        const rawOut = amount * 0.998;
-        const minReceived = rawOut * (1 - slippage / 100);
-        setResult({
-          amountOut: rawOut.toFixed(4),
-          priceImpact: 0.05,
-          minimumReceived: minReceived.toFixed(4),
-          gasFee: "~0.001 USDC",
-          loading: false,
-          error: null,
-        });
-      }, 400);
-      return () => {
-        abortRef.current = true;
-        clearTimeout(timer);
-      };
-    }
-
-    // Real Arc AppKit estimate
     const fetchEstimate = async () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const eth = (window as any).ethereum;
-        if (!eth) throw new Error("No wallet provider found");
-
-        const adapter = await createViemAdapterFromProvider({ provider: eth });
-        const kit = new SwapKit();
-
-        const quote = await kit.estimate({
-          from: { adapter, chain: "Arc_Testnet" },
-          tokenIn: tokenInSymbol,
-          tokenOut: tokenOutSymbol,
-          amountIn: amountIn,
-          config: { 
-            kitKey: process.env.NEXT_PUBLIC_ARC_KIT_KEY,
-            slippageBps: 50
-          },
+        const amountInBaseUnits = parseUnits(amountIn, tokenIn.decimals).toString();
+        const params = new URLSearchParams({
+          tokenIn: tokenIn.symbol,
+          tokenOut: tokenOut.symbol,
+          amount: amountInBaseUnits,
         });
+        if (fromAddress) params.set("fromAddress", fromAddress);
+
+        const res = await fetch(`/api/swap/quote?${params.toString()}`);
+        const body = await res.json().catch(() => null);
 
         if (abortRef.current) return;
 
-        const estimatedOut = quote.estimatedOutput?.amount ?? "";
-        const stopLimitAmount = quote.stopLimit?.amount ?? "";
+        if (!res.ok) {
+          setResult({
+            amountOut: "",
+            priceImpact: 0,
+            minimumReceived: "",
+            gasFee: "",
+            loading: false,
+            error: describeQuoteError(res.status, body?.error),
+          });
+          return;
+        }
 
-        // Gas fee from fees array
-        const gasFeeEntry = quote.fees?.find((f) => f.type === "gas");
-        const gasFee = gasFeeEntry
-          ? `~${parseFloat(gasFeeEntry.amount ?? "0").toFixed(4)} ${gasFeeEntry.token}`
-          : "~0.001 USDC";
+        const estimatedAmount = BigInt(body.quote.estimatedAmount);
+        const minAmount = BigInt(body.quote.minAmount);
 
-        // Price impact
-        const outNum = parseFloat(estimatedOut);
-        const stopNum = parseFloat(stopLimitAmount);
-        const priceImpact = outNum > 0 ? Math.abs(((outNum - stopNum) / outNum) * 100) : 0;
-
-        const minReceived = (outNum * (1 - slippage / 100)).toFixed(4);
+        const amountOutNum = parseFloat(formatUnits(estimatedAmount, tokenOut.decimals));
+        const minReceivedNum = parseFloat(formatUnits(minAmount, tokenOut.decimals));
+        const priceImpact = amountOutNum > 0 ? Math.abs(((amountOutNum - minReceivedNum) / amountOutNum) * 100) : 0;
 
         setResult({
-          amountOut: parseFloat(estimatedOut).toFixed(4),
+          amountOut: amountOutNum.toFixed(4),
           priceImpact: parseFloat(priceImpact.toFixed(4)),
-          minimumReceived: minReceived,
-          gasFee,
+          minimumReceived: minReceivedNum.toFixed(4),
+          gasFee: "~0.001 USDC",
           loading: false,
           error: null,
         });
       } catch (err: unknown) {
         if (abortRef.current) return;
-        // Graceful fallback
-        const rawOut = amount * 0.998;
-        let errorMessage = err instanceof Error ? err.message : "Estimate failed";
-        if (errorMessage.includes("Maximum retry attempts") || errorMessage.includes("Failed to fetch")) {
-          errorMessage = "Arc AppKit Service is currently unavailable. Please try again later.";
-        }
-
+        console.error("[useSwapQuote] estimate failed:", err);
         setResult({
-          amountOut: rawOut.toFixed(4),
-          priceImpact: 0.05,
-          minimumReceived: (rawOut * (1 - slippage / 100)).toFixed(4),
-          gasFee: "~0.001 USDC",
+          amountOut: "",
+          priceImpact: 0,
+          minimumReceived: "",
+          gasFee: "",
           loading: false,
-          error: errorMessage,
+          error: err instanceof Error ? err.message : "Estimate failed",
         });
       }
     };
 
-    fetchEstimate();
-    return () => { abortRef.current = true; };
-  }, [tokenInSymbol, tokenOutSymbol, amountIn, slippage]);
+    const debounceTimer = setTimeout(() => {
+      if (abortRef.current) return;
+      fetchEstimate();
+    }, 350);
+
+    return () => {
+      abortRef.current = true;
+      clearTimeout(debounceTimer);
+    };
+  }, [tokenInSymbol, tokenOutSymbol, amountIn, slippage, fromAddress]);
 
   return result;
 }

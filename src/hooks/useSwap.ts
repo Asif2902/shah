@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { createPublicClient, http } from "viem";
 import { SwapKit } from "@circle-fin/swap-kit";
 import { createViemAdapterFromProvider } from "@circle-fin/adapter-viem-v2";
 import { useTxStore } from "@/lib/txStore";
+import { describeSwapError } from "@/lib/utils";
+import { getInjectedWalletProvider } from "@/lib/walletProvider";
+import { ARC_TESTNET_RPC } from "@/lib/constants";
 
 export function useSwap() {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,12 +31,6 @@ export function useSwap() {
     setIsSuccess(false);
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const eth = (window as any).ethereum;
-      if (!eth) {
-        throw new Error("No wallet provider found. Please install MetaMask.");
-      }
-
       const kitKey = process.env.NEXT_PUBLIC_ARC_KIT_KEY;
       if (!kitKey || kitKey === "your_kit_key_here") {
         throw new Error(
@@ -40,11 +38,18 @@ export function useSwap() {
         );
       }
 
-      // Request wallet access
-      await eth.request({ method: "eth_requestAccounts" });
+      // Discover the wallet via EIP-6963 rather than window.ethereum directly —
+      // avoids silently picking the wrong extension when multiple wallets are installed.
+      const provider = await getInjectedWalletProvider();
+      await provider.request({ method: "eth_requestAccounts", params: undefined });
 
-      // Create viem adapter from injected browser wallet
-      const adapter = await createViemAdapterFromProvider({ provider: eth });
+      // Pin the RPC transport instead of the SDK's default endpoint, which
+      // docs.arc.io/app-kit/tutorials/adapter-setups notes "may be rate-limited
+      // or unreliable" — confirmed firsthand while debugging this integration.
+      const adapter = await createViemAdapterFromProvider({
+        provider,
+        getPublicClient: ({ chain }) => createPublicClient({ chain, transport: http(ARC_TESTNET_RPC) }),
+      });
       const kit = new SwapKit();
 
       const result = await kit.swap({
@@ -73,10 +78,8 @@ export function useSwap() {
 
       return hash;
     } catch (err: unknown) {
-      let message = err instanceof Error ? err.message : "Swap failed";
-      if (message.includes("Maximum retry attempts") || message.includes("Failed to fetch")) {
-        message = "Arc AppKit Swap Service is currently unavailable. Please try again later.";
-      }
+      console.error("[useSwap] swap failed:", err);
+      const message = describeSwapError(err);
       setError(message);
       addTransaction({
         type: "swap",
