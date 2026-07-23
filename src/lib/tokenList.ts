@@ -9,6 +9,8 @@ export type Token = {
   address: `0x${string}`;
   decimals: number;
   logoLetter: string;
+  /** Official token logo URL. If present, rendered as an <img>; falls back to letter avatar. */
+  logoUrl?: string;
   /** Arc AppKit swap token identifier. Undefined if not swappable via AppKit. */
   appKitSymbol?: string;
 };
@@ -20,6 +22,8 @@ export const TOKEN_LIST: Token[] = [
     address: "0x3600000000000000000000000000000000000000",
     decimals: 6,
     logoLetter: "U",
+    logoUrl:
+      "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
     appKitSymbol: "USDC",
   },
   {
@@ -28,6 +32,7 @@ export const TOKEN_LIST: Token[] = [
     address: "0x0000000000000000000000000000000000000002",
     decimals: 6,
     logoLetter: "E",
+    logoUrl: "https://assets.coingecko.com/coins/images/26045/small/euro-coin.png",
     appKitSymbol: "EURC",
   },
   {
@@ -36,6 +41,7 @@ export const TOKEN_LIST: Token[] = [
     address: "0x0000000000000000000000000000000000000003",
     decimals: 8,
     logoLetter: "B",
+    logoUrl: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
     appKitSymbol: "cirBTC",
   },
 ];

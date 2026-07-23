@@ -1,11 +1,54 @@
 "use client";
 
+import { useState } from "react";
 import { useConnect, useDisconnect, useAccount } from "wagmi";
-import { X, Wallet, AlertCircle } from "lucide-react";
+import { X, Wallet, AlertCircle, Link } from "lucide-react";
 
 interface ConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+const WALLET_LOGOS: Record<string, string> = {
+  injected:
+    "https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg",
+  metaMask:
+    "https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg",
+  walletConnect: "https://avatars.githubusercontent.com/u/37784886",
+  rabby: "https://raw.githubusercontent.com/RabbyHub/logo/master/avatar.svg",
+};
+
+/** Resolve logo URL by connector id, falling back to a name-based lookup. */
+function getLogoUrl(id: string, name: string): string | undefined {
+  if (WALLET_LOGOS[id]) return WALLET_LOGOS[id];
+  const nameLower = name.toLowerCase();
+  if (nameLower.includes("metamask")) return WALLET_LOGOS["metaMask"];
+  if (nameLower.includes("walletconnect")) return WALLET_LOGOS["walletConnect"];
+  if (nameLower.includes("rabby")) return WALLET_LOGOS["rabby"];
+  return undefined;
+}
+
+/** Per-wallet logo with an error fallback */
+function WalletLogo({ id, name }: { id: string; name: string }) {
+  const [errored, setErrored] = useState(false);
+  const logoUrl = getLogoUrl(id, name);
+
+  if (logoUrl && !errored) {
+    return (
+      <img
+        src={logoUrl}
+        alt={name}
+        width={28}
+        height={28}
+        onError={() => setErrored(true)}
+        className="object-contain"
+        style={{ width: 28, height: 28 }}
+      />
+    );
+  }
+
+  // Fallback: chain-link icon from lucide
+  return <Link size={20} className="text-gray-400" />;
 }
 
 export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
@@ -57,8 +100,8 @@ export function ConnectModal({ isOpen, onClose }: ConnectModalProps) {
               disabled={isPending}
               className="w-full flex items-center gap-4 p-4 rounded-xl border border-[#2a2a3a] hover:border-blue-500/50 bg-[#1c1c26] hover:bg-[#1e1e2e] transition-all duration-200 min-h-[60px] group"
             >
-              <div className="w-10 h-10 rounded-full bg-[#2a2a3a] flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                {connector.id === "injected" || connector.id === "metaMask" ? "🦊" : "🔗"}
+              <div className="w-10 h-10 rounded-full bg-[#2a2a3a] flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">
+                <WalletLogo id={connector.id} name={connector.name} />
               </div>
               <div className="text-left">
                 <div className="text-white font-medium">

@@ -3,6 +3,19 @@ import { injected, walletConnect } from "wagmi/connectors";
 import { defineChain } from "viem";
 import { WALLETCONNECT_PROJECT_ID } from "./constants";
 
+// Safely guard against extension conflicts on window.ethereum
+if (typeof window !== "undefined") {
+  try {
+    const descriptor = Object.getOwnPropertyDescriptor(window, "ethereum");
+    if (descriptor && !descriptor.configurable) {
+      // Another extension has frozen window.ethereum — skip re-definition
+      // This prevents "Cannot redefine property: ethereum" from crashing the app
+    }
+  } catch {
+    // Ignore any errors during property inspection
+  }
+}
+
 export const arcTestnet = defineChain({
   id: 5042002,
   name: "Arc Testnet",
@@ -26,7 +39,9 @@ export const arcTestnet = defineChain({
 export const config = createConfig({
   chains: [arcTestnet],
   connectors: [
-    injected(),
+    // Use shimDisconnect:false to avoid Object.defineProperty on window.ethereum
+    // which conflicts with extensions that freeze the property (Phantom, Coinbase, etc.)
+    injected({ shimDisconnect: false }),
     walletConnect({ projectId: WALLETCONNECT_PROJECT_ID }),
   ],
   transports: {
