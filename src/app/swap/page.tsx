@@ -53,8 +53,8 @@ export default function SwapPage() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   // Arc AppKit estimateSwap — uses token symbols
-  const { amountOut, priceImpact, minimumReceived, gasFee, loading: quoteLoading } =
-    useSwapQuote(tokenIn.appKitSymbol, tokenOut?.appKitSymbol, amountIn, slippage);
+  const { amountOut, priceImpact, minimumReceived, gasFee, loading: quoteLoading, error: quoteError } =
+    useSwapQuote(tokenIn.appKitSymbol, tokenOut?.appKitSymbol, amountIn, slippage, address);
 
   const filteredTokens = useMemo(
     () =>
@@ -134,6 +134,8 @@ export default function SwapPage() {
     if (!amountIn || parseFloat(amountIn) === 0) return { label: "Enter an amount", action: () => {}, disabled: true, variant: "gray" };
     if (!tokenOut) return { label: "Select a token", action: () => {}, disabled: true, variant: "gray" };
     if (!tokenIn.appKitSymbol || !tokenOut.appKitSymbol) return { label: "Token not supported", action: () => {}, disabled: true, variant: "gray" };
+    if (quoteLoading) return { label: "Fetching quote...", action: () => {}, disabled: true, variant: "gray" };
+    if (quoteError || !amountOut) return { label: "No route available", action: () => {}, disabled: true, variant: "gray" };
     return { label: "Swap", action: () => setConfirmOpen(true), disabled: false, variant: "blue" };
   };
 
@@ -246,6 +248,14 @@ export default function SwapPage() {
               Balance: {isConnected && tokenOut ? tokenOutBalance : "0.0000"} {tokenOut?.symbol ?? ""}
             </p>
           </div>
+
+          {/* Quote Error */}
+          {quoteError && !quoteLoading && (
+            <div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+              <AlertTriangle size={14} className="flex-shrink-0" />
+              {quoteError}
+            </div>
+          )}
 
           {/* Price Info */}
           {tokenOut && amountOut && !quoteLoading && (

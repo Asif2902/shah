@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { useEffect, useState } from "react";
+import { useAccount, useSwitchChain } from "wagmi";
 import { ARC_TESTNET_CHAIN_ID } from "@/lib/constants";
 
-const ARC_CHAIN_HEX = "0x4CE352"; // 5042002 in hex
+const ARC_CHAIN_HEX = "0x4CEF52"; // 5042002 in hex
 
 const ARC_CHAIN_PARAMS = {
   chainId: ARC_CHAIN_HEX,
@@ -50,17 +50,48 @@ async function addAndSwitchToArc() {
 }
 
 export function useArcNetwork() {
-  const chainId = useChainId();
   const { isConnected } = useAccount();
   const { switchChain } = useSwitchChain();
+  // wagmiConfig.ts only registers Arc Testnet in `chains`, and wagmi's
+  // useChainId()/store deliberately refuses to sync state.chainId to any
+  // chain outside that list (see @wagmi/core createConfig.js — "If chain is
+  // not configured, then don't switch over to it"). That means useChainId()
+  // stays frozen on Arc Testnet's id even when the wallet is actually on a
+  // different chain, which is exactly backwards for "detect the wrong chain."
+  // Read the real chain id straight from the injected provider instead.
+  const [rawChainId, setRawChainId] = useState<number | null>(null);
 
-  const isCorrectNetwork = !isConnected || chainId === ARC_TESTNET_CHAIN_ID;
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.ethereum) return;
+
+    let cancelled = false;
+
+    window.ethereum
+      .request({ method: "eth_chainId" })
+      .then((hex: string) => {
+        if (!cancelled) setRawChainId(parseInt(hex, 16));
+      })
+      .catch(() => {});
+
+    const onChainChanged = (hex: string) => setRawChainId(parseInt(hex, 16));
+    window.ethereum.on?.("chainChanged", onChainChanged);
+
+    return () => {
+      cancelled = true;
+      window.ethereum?.removeListener?.("chainChanged", onChainChanged);
+    };
+  }, [isConnected]);
+
+  const isCorrectNetwork = !isConnected || rawChainId === null || rawChainId === ARC_TESTNET_CHAIN_ID;
 
   const switchToArc = async () => {
     try {
       if (typeof window !== "undefined" && window.ethereum) {
         await addAndSwitchToArc();
       } else if (switchChain) {
+        // Non-injected sessions (e.g. WalletConnect) — wagmi can still switch
+        // to Arc Testnet directly since it IS in `chains`; it just can't track
+        // arbitrary other chains, which is the part we work around above.
         switchChain({ chainId: ARC_TESTNET_CHAIN_ID });
       }
     } catch (error) {
@@ -70,11 +101,11 @@ export function useArcNetwork() {
 
   // Auto-trigger on wallet connect or chain change
   useEffect(() => {
-    if (isConnected && chainId !== ARC_TESTNET_CHAIN_ID) {
+    if (isConnected && rawChainId !== null && rawChainId !== ARC_TESTNET_CHAIN_ID) {
       switchToArc();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, chainId]);
+  }, [isConnected, rawChainId]);
 
-  return { isCorrectNetwork, switchToArc, chainId };
+  return { isCorrectNetwork, switchToArc, chainId: rawChainId };
 }

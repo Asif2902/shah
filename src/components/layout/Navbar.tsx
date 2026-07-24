@@ -24,7 +24,7 @@ export function Navbar() {
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  const { isCorrectNetwork } = useArcNetwork();
+  const { isCorrectNetwork, switchToArc } = useArcNetwork();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -84,7 +84,14 @@ export function Navbar() {
           </span>
 
           {/* Connect / Account */}
-          {isConnected && address ? (
+          {isConnected && address && !isCorrectNetwork ? (
+            <button
+              onClick={switchToArc}
+              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-medium text-sm transition-colors min-h-[44px]"
+            >
+              Switch to Arc Testnet
+            </button>
+          ) : isConnected && address ? (
             <div className="flex items-center gap-2">
               {/* USDC balance chip */}
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#13131a] border border-[#2a2a3a] text-sm text-gray-200 flex-shrink-0">
