@@ -14,24 +14,30 @@ export function useHealthFactor() {
     args: address ? [address] : undefined,
     query: {
       enabled: !!address && isConnected,
-      refetchInterval: 30_000,
+      refetchInterval: 10_000,
     },
   });
 
   const result = data as [bigint, bigint, bigint] | undefined;
 
-  const totalCollateralUSD = result ? parseFloat(formatUnits(result[0], 6)) : 0;
-  const totalDebtUSD = result ? parseFloat(formatUnits(result[1], 6)) : 0;
+  // Handles collateral & debt USD formatting
+  // The contract returns collateral and debt USD values based on oracle price
+  const totalCollateralUSD = result ? parseFloat(formatUnits(result[0], 18)) : 0;
+  const totalDebtUSD = result ? parseFloat(formatUnits(result[1], 18)) : 0;
 
   let healthFactor: number | null = null;
   if (result && result[2] !== undefined) {
     const rawVal = result[2];
-    const val = parseFloat(formatUnits(rawVal, 18));
-    // If health factor > 100 or unrealistic (e.g. max uint256 when 0 debt), treat as null / infinite ("—")
-    healthFactor = val > 100 || !isFinite(val) ? null : val;
+    // If debt is 0, health factor is uint256 max
+    if (rawVal === 115792089237316195423570985008687907853269984665640564039457584007913129639935n) {
+      healthFactor = null;
+    } else {
+      const val = parseFloat(formatUnits(rawVal, 18));
+      healthFactor = val > 100 || !isFinite(val) ? null : val;
+    }
   }
 
-  const maxBorrow = totalCollateralUSD * 0.8;
+  const maxBorrow = totalCollateralUSD * 0.8; // 80% liquidation threshold
   const availableBorrowUSD = Math.max(0, maxBorrow - totalDebtUSD);
 
   return {

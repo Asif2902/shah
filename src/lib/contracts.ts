@@ -1,5 +1,5 @@
 export const SWAP_ROUTER_ADDRESS = "0xc170E80c281f53446429e9dE2b33BFEcFdaaDd5B" as `0x${string}`;
-export const LENDING_POOL_ADDRESS = "0x5995EB04BCD70C01b0c8E2a782290ff98495Eb9D" as `0x${string}`;
+export const LENDING_POOL_ADDRESS = "0x20262821B19ADf7BC1f61bEd48f5D254898E42B4" as `0x${string}`;
 export const PRICE_ORACLE_ADDRESS = "0x04e345dA16D53933874038bEF497700511F98123" as `0x${string}`;
 
 export const SWAP_ROUTER_ABI = [
@@ -50,6 +50,92 @@ export const ERC20_ABI = [
 
 export const LENDING_POOL_ABI = [
   {
+    name: "getSupportedAssets",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address[]" }],
+  },
+  {
+    name: "assets",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [
+      { name: "isSupported", type: "bool" },
+      { name: "totalSupplied", type: "uint256" },
+      { name: "totalBorrowed", type: "uint256" },
+      { name: "lastUpdateTime", type: "uint256" },
+      { name: "baseRate", type: "uint256" },
+      { name: "rateMultiplier", type: "uint256" },
+    ],
+  },
+  {
+    name: "getBorrowRate",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "getSupplyRate",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "token", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "getUserAccountData",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "user", type: "address" }],
+    outputs: [
+      { name: "totalCollateralValueUSD", type: "uint256" },
+      { name: "totalBorrowValueUSD", type: "uint256" },
+      { name: "healthFactor", type: "uint256" },
+    ],
+  },
+  {
+    name: "supplyShares",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "token", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "borrowShares",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "token", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "supplySharesToAmount",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "shares", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "borrowSharesToAmount",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "token", type: "address" },
+      { name: "shares", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     name: "supply",
     type: "function",
     stateMutability: "nonpayable",
@@ -88,27 +174,5 @@ export const LENDING_POOL_ABI = [
       { name: "amount", type: "uint256" },
     ],
     outputs: [],
-  },
-  {
-    name: "getUserAccountData",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "user", type: "address" }],
-    outputs: [
-      { name: "totalCollateralValueUSD", type: "uint256" },
-      { name: "totalBorrowValueUSD", type: "uint256" },
-      { name: "healthFactor", type: "uint256" },
-    ],
-  },
-  {
-    name: "getReserveData",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "token", type: "address" }],
-    outputs: [
-      { name: "liquidityRate", type: "uint256" },
-      { name: "variableBorrowRate", type: "uint256" },
-      { name: "totalLiquidity", type: "uint256" },
-    ],
   },
 ] as const;
