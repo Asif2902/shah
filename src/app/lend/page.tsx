@@ -100,7 +100,7 @@ export default function LendPage() {
   const borrowLiqRisk = previewHF !== null && previewHF < 1.0;
 
   const currentUsdcBalanceStr = balanceData
-    ? parseFloat(formatUnits(balanceData.value, balanceData.decimals)).toFixed(4)
+    ? parseFloat(formatUnits(balanceData.value, 18)).toFixed(4)
     : "0.00";
 
   return (

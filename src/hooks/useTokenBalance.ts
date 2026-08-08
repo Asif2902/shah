@@ -64,7 +64,7 @@ export function useTokenBalance(
   const refetch = isUsdc ? balanceRefetch : readRefetch;
 
   const formatted = isUsdc
-    ? (balanceData !== undefined ? formatUnits(balanceData.value, balanceData.decimals ?? 18) : "0.00")
+    ? (data !== undefined ? formatUnits(data as bigint, 18) : "0.00")
     : (data !== undefined ? formatUnits(data as bigint, decimals) : "0.00");
   const displayBalance = parseFloat(formatted).toFixed(4);
 
@@ -109,7 +109,7 @@ export function useTokenBalanceWithDecimals(
   const refetch = isUsdc ? balanceRefetch : readRefetch;
 
   const formatted = isUsdc
-    ? (balanceData !== undefined ? formatUnits(balanceData.value, balanceData.decimals ?? 18) : "0.00")
+    ? (data !== undefined ? formatUnits(data as bigint, 18) : "0.00")
     : (data !== undefined ? formatUnits(data as bigint, decimals) : "0.00");
   const displayBalance = parseFloat(formatted).toFixed(4);
 

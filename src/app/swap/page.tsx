@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useBalance } from "wagmi";
 import {
   Settings, ArrowUpDown, ChevronDown, X, Search,
   AlertTriangle, CheckCircle, Loader2, ExternalLink, Zap,
@@ -78,8 +78,8 @@ export default function SwapPage() {
   const [tokenOut, setTokenOut] = useState<Token | null>(null);
   const [amountIn, setAmountIn] = useState("");
 
-  const { balance: tokenInBalance, refetch: refetchTokenIn } = useTokenBalance(tokenIn.address, address, tokenIn.symbol);
-  const { balance: tokenOutBalance, refetch: refetchTokenOut } = useTokenBalance(tokenOut?.address, address, tokenOut?.symbol);
+  const { balance: payTokenBalance, refetch: refetchTokenIn } = useTokenBalance(tokenIn.address, address, tokenIn.symbol);
+  const { balance: receiveTokenBalance, refetch: refetchTokenOut } = useTokenBalance(tokenOut?.address, address, tokenOut?.symbol);
 
   const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE);
   const [deadline, setDeadline] = useState(20);
@@ -236,11 +236,11 @@ export default function SwapPage() {
             </div>
             <div className="flex items-center justify-between mt-2">
               <p className="text-xs text-gray-600">
-                Balance: {isConnected ? tokenInBalance : "0.0000"} {tokenIn.symbol}
+                Balance: {isConnected ? payTokenBalance : "0.0000"} {tokenIn.symbol}
               </p>
-              {isConnected && parseFloat(tokenInBalance) > 0 && (
+              {isConnected && parseFloat(payTokenBalance) > 0 && (
                 <button
-                  onClick={() => setAmountIn(tokenInBalance)}
+                  onClick={() => setAmountIn(payTokenBalance)}
                   className="text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors px-1.5 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20"
                 >
                   MAX
@@ -289,7 +289,7 @@ export default function SwapPage() {
               )}
             </div>
             <p className="text-xs text-gray-600 mt-2">
-              Balance: {isConnected && tokenOut ? tokenOutBalance : "0.0000"} {tokenOut?.symbol ?? ""}
+              Balance: {isConnected && tokenOut ? receiveTokenBalance : "0.0000"} {tokenOut?.symbol ?? ""}
             </p>
           </div>
 
