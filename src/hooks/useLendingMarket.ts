@@ -77,8 +77,8 @@ export function useLendingMarket() {
   // Second pass queries for supplySharesToAmount and borrowSharesToAmount
   const shareConversionContracts = TOKEN_LIST.flatMap((t, idx) => {
     const baseIdx = idx * 5;
-    const userSupplyShares = (data?.[baseIdx + 3]?.result as bigint) ?? 0n;
-    const userBorrowShares = (data?.[baseIdx + 4]?.result as bigint) ?? 0n;
+    const userSupplyShares = (data?.[baseIdx + 3]?.result as bigint) ?? BigInt(0);
+    const userBorrowShares = (data?.[baseIdx + 4]?.result as bigint) ?? BigInt(0);
 
     return [
       {
@@ -109,16 +109,16 @@ export function useLendingMarket() {
     const assetData = data?.[baseIdx]?.result as
       | [boolean, bigint, bigint, bigint, bigint, bigint]
       | undefined;
-    const supplyRateRaw = (data?.[baseIdx + 1]?.result as bigint) ?? 0n;
-    const borrowRateRaw = (data?.[baseIdx + 2]?.result as bigint) ?? 0n;
+    const supplyRateRaw = (data?.[baseIdx + 1]?.result as bigint) ?? BigInt(0);
+    const borrowRateRaw = (data?.[baseIdx + 2]?.result as bigint) ?? BigInt(0);
 
     const shareIdx = idx * 2;
-    const userSupplyAmount = (shareData?.[shareIdx]?.result as bigint) ?? 0n;
-    const userBorrowAmount = (shareData?.[shareIdx + 1]?.result as bigint) ?? 0n;
+    const userSupplyAmount = (shareData?.[shareIdx]?.result as bigint) ?? BigInt(0);
+    const userBorrowAmount = (shareData?.[shareIdx + 1]?.result as bigint) ?? BigInt(0);
 
     const isSupported = assetData ? assetData[0] : true;
-    const totalSupplied = assetData ? assetData[1] : 0n;
-    const totalBorrowed = assetData ? assetData[2] : 0n;
+    const totalSupplied = assetData ? assetData[1] : BigInt(0);
+    const totalBorrowed = assetData ? assetData[2] : BigInt(0);
 
     const supplyAprPercent = parseFloat(formatUnits(supplyRateRaw, 18)) * 100;
     const borrowAprPercent = parseFloat(formatUnits(borrowRateRaw, 18)) * 100;

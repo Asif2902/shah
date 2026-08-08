@@ -214,7 +214,7 @@ export default function BorrowPage() {
                     >
                       Borrow
                     </button>
-                    {m.userBorrowAmount > 0n && (
+                    {m.userBorrowAmount > BigInt(0) && (
                       <button
                         onClick={() => { setRepayModal(m); setRepayAmount(""); }}
                         className="px-4 py-2 rounded-xl border border-purple-500/40 text-purple-300 hover:bg-purple-500/10 text-xs font-semibold transition-colors min-h-[38px]"

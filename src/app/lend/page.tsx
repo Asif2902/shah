@@ -249,7 +249,7 @@ export default function LendPage() {
                       >
                         Supply
                       </button>
-                      {m.userSupplyAmount > 0n && (
+                      {m.userSupplyAmount > BigInt(0) && (
                         <button
                           onClick={() => { setWithdrawModal(m); setWithdrawAmount(""); }}
                           className="px-3 py-1.5 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 text-xs font-semibold transition-colors min-h-[34px]"
@@ -295,7 +295,7 @@ export default function LendPage() {
                       >
                         Borrow
                       </button>
-                      {m.userBorrowAmount > 0n && (
+                      {m.userBorrowAmount > BigInt(0) && (
                         <button
                           onClick={() => { setRepayModal(m); setRepayAmount(""); }}
                           className="px-3 py-1.5 rounded-lg border border-purple-500/40 text-purple-400 hover:bg-purple-500/10 text-xs font-semibold transition-colors min-h-[34px]"
