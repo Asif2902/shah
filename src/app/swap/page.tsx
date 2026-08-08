@@ -29,6 +29,44 @@ interface ToastMessage {
   txHash?: string;
 }
 
+function TokenOptionItem({
+  token,
+  userAddress,
+  onSelect,
+}: {
+  token: Token;
+  userAddress?: `0x${string}`;
+  onSelect: (token: Token) => void;
+}) {
+  const { balance } = useTokenBalance(token.address, userAddress, token.symbol);
+
+  return (
+    <button
+      onClick={() => onSelect(token)}
+      className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-white/5 transition-colors min-h-[60px]"
+    >
+      <div className="flex items-center gap-3">
+        <TokenLogo symbol={token.symbol} size={36} />
+        <div className="text-left">
+          <div className="text-white font-medium text-sm">{token.name}</div>
+          <div className="text-gray-500 text-xs">{token.symbol}</div>
+        </div>
+      </div>
+      <div className="text-right">
+        {userAddress && (
+          <div className="text-sm font-medium text-gray-200 mb-0.5">
+            {balance}
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-1 text-xs text-blue-400/60 bg-blue-500/5 px-2 py-0.5 rounded-full">
+          <Zap size={9} />
+          AppKit
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function SwapPage() {
   const { isConnected, address } = useAccount();
   const { isCorrectNetwork, switchToArc } = useArcNetwork();
@@ -40,8 +78,8 @@ export default function SwapPage() {
   const [tokenOut, setTokenOut] = useState<Token | null>(null);
   const [amountIn, setAmountIn] = useState("");
 
-  const { balance: tokenInBalance } = useTokenBalance(tokenIn.address, address, tokenIn.symbol);
-  const { balance: tokenOutBalance } = useTokenBalance(tokenOut?.address, address, tokenOut?.symbol);
+  const { balance: tokenInBalance, refetch: refetchTokenIn } = useTokenBalance(tokenIn.address, address, tokenIn.symbol);
+  const { balance: tokenOutBalance, refetch: refetchTokenOut } = useTokenBalance(tokenOut?.address, address, tokenOut?.symbol);
 
   const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE);
   const [deadline, setDeadline] = useState(20);
@@ -119,6 +157,12 @@ export default function SwapPage() {
         txHash: hash,
       });
       setAmountIn("");
+      refetchTokenIn();
+      if (refetchTokenOut) refetchTokenOut();
+      setTimeout(() => {
+        refetchTokenIn();
+        if (refetchTokenOut) refetchTokenOut();
+      }, 2000);
     } catch (err: unknown) {
       showToast({
         type: "error",
@@ -431,21 +475,12 @@ export default function SwapPage() {
             </div>
             <div className="overflow-y-auto" style={{ maxHeight: "calc(85dvh - 140px)" }}>
               {filteredTokens.map((token) => (
-                <button
+                <TokenOptionItem
                   key={token.address}
-                  onClick={() => handleSelectToken(token)}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/5 transition-colors min-h-[60px]"
-                >
-                  <TokenLogo symbol={token.symbol} size={36} />
-                  <div className="flex-1 text-left">
-                    <div className="text-white font-medium text-sm">{token.name}</div>
-                    <div className="text-gray-500 text-xs">{token.symbol}</div>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-blue-400/60 bg-blue-500/5 px-2 py-0.5 rounded-full">
-                    <Zap size={9} />
-                    AppKit
-                  </div>
-                </button>
+                  token={token}
+                  userAddress={address}
+                  onSelect={handleSelectToken}
+                />
               ))}
             </div>
           </div>

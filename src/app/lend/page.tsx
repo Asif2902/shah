@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useBalance } from "wagmi";
+import { formatUnits } from "viem";
 import { X, AlertTriangle, CheckCircle, Loader2, ExternalLink, TrendingUp } from "lucide-react";
 import { TokenLogo } from "@/components/ui/TokenLogo";
 import { useHealthFactor } from "@/hooks/useHealthFactor";
@@ -32,7 +33,8 @@ function validateAmount(value: string): string {
 type ToastMsg = { type: "pending" | "success" | "error"; message: string; txHash?: string };
 
 export default function LendPage() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  const { data: balanceData } = useBalance({ address });
   const { healthFactor, totalCollateralUSD, totalDebtUSD, availableBorrowUSD, isLoading: hfLoading } = useHealthFactor();
 
   const [supplyModal, setSupplyModal] = useState<(typeof SUPPLY_MARKETS)[0] | null>(null);
@@ -54,7 +56,8 @@ export default function LendPage() {
     if (!add) return healthFactor;
     const newDebt = totalDebtUSD + add;
     if (!totalCollateralUSD) return null;
-    return (totalCollateralUSD * 0.8) / newDebt;
+    const res = (totalCollateralUSD * 0.8) / newDebt;
+    return res > 100 ? null : res;
   }, [borrowAmount, borrowModal, healthFactor, totalCollateralUSD, totalDebtUSD]);
 
   const showToast = (msg: ToastMsg) => {
@@ -96,6 +99,10 @@ export default function LendPage() {
   const borrowRisk = previewHF !== null && previewHF < 1.2;
   const borrowLiqRisk = previewHF !== null && previewHF < 1.0;
 
+  const currentUsdcBalanceStr = balanceData
+    ? parseFloat(formatUnits(balanceData.value, balanceData.decimals)).toFixed(4)
+    : "0.00";
+
   return (
     <div className="min-h-screen px-4 pt-8 pb-24" style={{ background: "#0a0a0f" }}>
       <div className="max-w-6xl mx-auto">
@@ -122,7 +129,9 @@ export default function LendPage() {
               <div className="w-20 h-7 rounded-lg bg-gray-800 animate-pulse" />
             ) : (
               <div>
-                <span className={`text-2xl font-bold ${hfColor(healthFactor)}`}>{healthFactor?.toFixed(4) ?? "N/A"}</span>
+                <span className={`text-2xl font-bold ${hfColor(healthFactor)}`}>
+                  {healthFactor !== null && healthFactor <= 100 ? healthFactor.toFixed(2) : "—"}
+                </span>
                 {healthFactor !== null && healthFactor < 1.0 && (
                   <div className="mt-1 flex items-center gap-1 text-red-400 text-xs"><AlertTriangle size={12} />Liquidation risk!</div>
                 )}
@@ -164,7 +173,9 @@ export default function LendPage() {
                   <div className="text-xs text-gray-500">{m.name}</div>
                 </div>
                 <div className="text-emerald-400 font-semibold text-sm mr-4">{m.apy}%</div>
-                <div className="text-gray-500 text-sm mr-4 hidden sm:block">0.00</div>
+                <div className="text-gray-500 text-sm mr-4 hidden sm:block">
+                  {m.symbol === "USDC" ? currentUsdcBalanceStr : "0.00"}
+                </div>
                 <button onClick={() => { setSupplyModal(m); setSupplyAmount(""); }} className="px-3 py-1.5 rounded-lg border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 text-xs font-medium transition-colors min-h-[36px]">
                   Supply
                 </button>
@@ -217,7 +228,23 @@ export default function LendPage() {
               <button onClick={() => setSupplyModal(null)} className="text-gray-400 hover:text-white p-1"><X size={18} /></button>
             </div>
             <div className="mb-4">
-              <div className="flex justify-between mb-2"><label className="text-sm text-gray-400">Amount</label><button className="text-xs text-blue-400">MAX</button></div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm text-gray-400 font-medium">Amount</label>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-400">
+                    Balance: {currentUsdcBalanceStr} {supplyModal.symbol}
+                  </span>
+                  {balanceData && parseFloat(currentUsdcBalanceStr) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSupplyAmount(currentUsdcBalanceStr)}
+                      className="text-blue-400 font-semibold hover:text-blue-300 transition-colors"
+                    >
+                      MAX
+                    </button>
+                  )}
+                </div>
+              </div>
               <div className="flex items-center gap-3 p-3 rounded-xl border border-[#2a2a3a] focus-within:border-blue-500/50" style={{ background: "#1c1c26" }}>
                 <TokenLogo symbol={supplyModal.symbol} size={28} />
                 <input type="text" inputMode="decimal" placeholder="0.0" value={supplyAmount} onChange={(e) => setSupplyAmount(validateAmount(e.target.value))} className="flex-1 bg-transparent text-white text-lg font-semibold outline-none" autoFocus />
@@ -237,8 +264,8 @@ export default function LendPage() {
                 <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${useAsCollateral ? "translate-x-5" : "translate-x-1"}`} />
               </button>
             </div>
-            <button onClick={handleSupply} disabled={!supplyAmount || parseFloat(supplyAmount) === 0} className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-[#2a2a3a] disabled:text-gray-500 text-white font-semibold transition-colors min-h-[52px]">
-              Supply {supplyModal.symbol}
+            <button onClick={handleSupply} disabled={!supplyAmount || parseFloat(supplyAmount) === 0 || submitting} className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-[#2a2a3a] disabled:text-gray-500 text-white font-semibold transition-colors min-h-[52px]">
+              {submitting ? "Supplying..." : `Supply ${supplyModal.symbol}`}
             </button>
           </div>
         </div>
@@ -254,7 +281,23 @@ export default function LendPage() {
               <button onClick={() => setBorrowModal(null)} className="text-gray-400 hover:text-white p-1"><X size={18} /></button>
             </div>
             <div className="mb-4">
-              <div className="flex justify-between mb-2"><label className="text-sm text-gray-400">Amount</label><button className="text-xs text-blue-400">MAX</button></div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm text-gray-400 font-medium">Amount</label>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-400">
+                    Available: ${availableBorrowUSD.toFixed(4)}
+                  </span>
+                  {availableBorrowUSD > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setBorrowAmount(availableBorrowUSD.toFixed(4))}
+                      className="text-blue-400 font-semibold hover:text-blue-300 transition-colors"
+                    >
+                      MAX
+                    </button>
+                  )}
+                </div>
+              </div>
               <div className="flex items-center gap-3 p-3 rounded-xl border border-[#2a2a3a] focus-within:border-blue-500/50" style={{ background: "#1c1c26" }}>
                 <TokenLogo symbol={borrowModal.symbol} size={28} />
                 <input type="text" inputMode="decimal" placeholder="0.0" value={borrowAmount} onChange={(e) => setBorrowAmount(validateAmount(e.target.value))} className="flex-1 bg-transparent text-white text-lg font-semibold outline-none" autoFocus />
@@ -267,7 +310,9 @@ export default function LendPage() {
               {borrowAmount && parseFloat(borrowAmount) > 0 && (
                 <div className="flex justify-between text-sm border-t border-[#2a2a3a] pt-2">
                   <span className="text-gray-500">New Health Factor</span>
-                  <span className={hfColor(previewHF)}>{previewHF?.toFixed(4) ?? "N/A"}</span>
+                  <span className={hfColor(previewHF)}>
+                    {previewHF !== null && previewHF <= 100 ? previewHF.toFixed(2) : "—"}
+                  </span>
                 </div>
               )}
             </div>
@@ -277,8 +322,8 @@ export default function LendPage() {
                 {borrowLiqRisk ? "This borrow would risk liquidation!" : "Health factor would drop below 1.2."}
               </div>
             )}
-            <button onClick={handleBorrow} disabled={!borrowAmount || parseFloat(borrowAmount) === 0 || borrowLiqRisk} className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-[#2a2a3a] disabled:text-gray-500 text-white font-semibold transition-colors min-h-[52px]">
-              {borrowLiqRisk ? "Borrowing would risk liquidation" : `Borrow ${borrowModal.symbol}`}
+            <button onClick={handleBorrow} disabled={!borrowAmount || parseFloat(borrowAmount) === 0 || borrowLiqRisk || submitting} className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-[#2a2a3a] disabled:text-gray-500 text-white font-semibold transition-colors min-h-[52px]">
+              {submitting ? "Borrowing..." : borrowLiqRisk ? "Borrowing would risk liquidation" : `Borrow ${borrowModal.symbol}`}
             </button>
           </div>
         </div>

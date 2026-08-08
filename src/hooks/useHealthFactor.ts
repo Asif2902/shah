@@ -22,7 +22,14 @@ export function useHealthFactor() {
 
   const totalCollateralUSD = result ? parseFloat(formatUnits(result[0], 6)) : 0;
   const totalDebtUSD = result ? parseFloat(formatUnits(result[1], 6)) : 0;
-  const healthFactor = result ? parseFloat(formatUnits(result[2], 18)) : null;
+
+  let healthFactor: number | null = null;
+  if (result && result[2] !== undefined) {
+    const rawVal = result[2];
+    const val = parseFloat(formatUnits(rawVal, 18));
+    // If health factor > 100 or unrealistic (e.g. max uint256 when 0 debt), treat as null / infinite ("—")
+    healthFactor = val > 100 || !isFinite(val) ? null : val;
+  }
 
   const maxBorrow = totalCollateralUSD * 0.8;
   const availableBorrowUSD = Math.max(0, maxBorrow - totalDebtUSD);
