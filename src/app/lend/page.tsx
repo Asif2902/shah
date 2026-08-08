@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useAccount, useBytecode } from "wagmi";
+import { useAccount } from "wagmi";
 import { X, AlertTriangle, CheckCircle, Loader2, ExternalLink, TrendingUp, RefreshCw, ArrowDownLeft } from "lucide-react";
 import { TokenLogo } from "@/components/ui/TokenLogo";
 import { useHealthFactor } from "@/hooks/useHealthFactor";
@@ -9,7 +9,6 @@ import { useLendingMarket, MarketAsset } from "@/hooks/useLendingMarket";
 import { useLendingActions } from "@/hooks/useLendingActions";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { ARC_EXPLORER } from "@/lib/constants";
-import { LENDING_POOL_ADDRESS } from "@/lib/contracts";
 
 function validateAmount(value: string): string {
   const cleaned = value.replace(/[^0-9.]/g, "");
@@ -23,10 +22,6 @@ type ToastMsg = { type: "pending" | "success" | "error"; message: string; txHash
 
 export default function LendPage() {
   const { isConnected, address } = useAccount();
-  const { data: poolCode, isLoading: poolCodeLoading } = useBytecode({
-    address: LENDING_POOL_ADDRESS,
-  });
-  const poolDeployed = !!poolCode && poolCode !== "0x";
   const { healthFactor, totalCollateralUSD, totalDebtUSD, availableBorrowUSD, isLoading: hfLoading, refetch: refetchHF } = useHealthFactor();
   const { markets, isLoading: marketLoading, refetch: refetchMarket } = useLendingMarket();
   const { supply, withdraw, borrow, repay, submitting, statusMessage } = useLendingActions();
@@ -175,21 +170,6 @@ export default function LendPage() {
             Refresh
           </button>
         </div>
-
-        {!poolCodeLoading && !poolDeployed && (
-          <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-100 text-sm">
-            <AlertTriangle size={18} className="flex-shrink-0 mt-0.5 text-amber-400" />
-            <div>
-              <p className="font-semibold text-amber-300 mb-1">Lending pool not deployed at configured address</p>
-              <p className="text-amber-100/80 text-xs leading-relaxed">
-                Supply will not move USDC until you deploy <code className="text-amber-200">ArcFlowPriceOracle</code> +{" "}
-                <code className="text-amber-200">ArcFlowLendingPool</code>, list markets, set oracle prices, then paste
-                addresses in <code className="text-amber-200">src/lib/contracts.ts</code>. Current pool:{" "}
-                <span className="font-mono text-[11px] break-all">{LENDING_POOL_ADDRESS}</span>
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -379,7 +359,7 @@ export default function LendPage() {
             </div>
             <button
               onClick={handleSupplySubmit}
-              disabled={!poolDeployed || !supplyAmount || parseFloat(supplyAmount) === 0 || submitting}
+              disabled={!supplyAmount || parseFloat(supplyAmount) === 0 || submitting}
               className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-[#2a2a3a] disabled:text-gray-500 text-white font-semibold transition-colors min-h-[52px] flex items-center justify-center gap-2"
             >
               {submitting ? (
@@ -387,8 +367,6 @@ export default function LendPage() {
                   <Loader2 size={18} className="animate-spin" />
                   <span>{statusMessage || "Supplying..."}</span>
                 </>
-              ) : !poolDeployed ? (
-                "Pool not deployed"
               ) : (
                 `Supply ${supplyModal.token.symbol}`
               )}
